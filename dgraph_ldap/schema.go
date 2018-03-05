@@ -3,6 +3,7 @@ package dgraph_ldap
 import (
 	"time"
 	"github.com/json-iterator/go"
+	"fmt"
 )
 
 type NodeType uint
@@ -84,6 +85,28 @@ type User struct {
 	nodeBase
 }
 
+func UnmarshalNode(b []byte) (node Node, err error) {
+	if nt := DGraphJsonMarshaller.Get(b, "t"); nt.ValueType() == jsoniter.NumberValue {
+		nodeType := NodeType(nt.ToUint())
+		switch nodeType {
+		case TypeDocument:
+			node = new(Document)
+			err = DGraphJsonMarshaller.Unmarshal(b, node)
+		default:
+			node = nil
+			err = NewError(ErrorInvalidGraphNodeType, fmt.Sprintf("No Such Node Type code: %d.", nodeType))
+		}
+	} else {
+		node = nil
+		err = NewError(ErrorInvalidGraphNodeType, fmt.Sprintf("Can't find node type field."))
+	}
+	return
+}
+
+func MarshalNode(n Node) (b []byte, err error) {
+	b, err = DGraphJsonMarshaller.Marshal(n)
+	return
+}
 
 var DGraphJsonMarshaller = jsoniter.Config{
 	//IndentionStep:                 4,
@@ -92,7 +115,7 @@ var DGraphJsonMarshaller = jsoniter.Config{
 	SortMapKeys:                   false,
 	//UseNumber:                     true,
 	//DisallowUnknownFields:         true,
-	TagKey:                        "dg",
+	TagKey:                        "db",
 	//OnlyTaggedField:               true,
 	//ValidateJsonRawMessage:        true,
 	//ObjectFieldMustBeSimpleString: true,
@@ -101,7 +124,7 @@ var DGraphJsonMarshaller = jsoniter.Config{
 var ClientJsonMarshaller = jsoniter.Config{
 	EscapeHTML:                    false,
 	SortMapKeys:                   false,
-	TagKey:                        "cl",
+	TagKey:                        "client",
 }.Froze()
 
 

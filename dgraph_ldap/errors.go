@@ -6,10 +6,12 @@ type ErrorCode uint
 
 const (
 	ErrorGraphNotInitialized ErrorCode = iota
+	ErrorInvalidGraphNodeType
 )
 
 var errorDescriptions = map[ErrorCode]string{
-	ErrorGraphNotInitialized: "ErrorGraphNotInitialized",
+	ErrorGraphNotInitialized: "GraphNotInitialized",
+	ErrorInvalidGraphNodeType: "InvalidGraphNodeType",
 }
 
 type Error struct {

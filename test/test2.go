@@ -42,8 +42,10 @@ type s1 struct {
 
 func main() {
 	var v0 s1
-	sss := []byte(`{"a":"2333", "b":"hhhhhh", "c":{"d": 233, "e": "213"}}`)
-	fmt.Println(DGraphJsonMarshaller.Get(sss, "c").ToString())
+	sss := []byte(`{"i": 213213, "a":"2333", "b":"hhhhhh", "c":{"d": 233, "e": "213"}}`)
+	iii := DGraphJsonMarshaller.Get(sss, "i")
+	fmt.Println(iii.ValueType())
+	fmt.Println(iii.ToUint())
 	err := DGraphJsonMarshaller.Unmarshal(sss, &v0)
 	if err != nil {
 		fmt.Println("error:", err)
