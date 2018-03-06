@@ -50,7 +50,7 @@ func (*nodeBase) GetChildren() error {
 	return nil  // TODO
 }
 
-type userNode struct {
+type assetInfoNode struct {
 	nodeBase
 
 	// user creator:
@@ -74,11 +74,62 @@ type userNode struct {
 	// guest can't be owner !!!!!!!!!!!!!!
 	// np.binary_repr(np.bitwise_and(np.int8(-0b1010110), np.int(0b1111111)))  wrong !!!
 	// np.binary_repr(np.bitwise_and(np.abs(np.int8(-0b1010110)), np.int(0b1111111)))  right
-	Permissions int64 `json:"pm" schema:"int"`
+	Permissions int64 `db:"pm" schema:"int"`
+}
+
+
+
+type DataNode struct {
+	field string
+}
+
+type DataSet struct{
+	dataMap map[string]int
+	data []*DataNode
+}
+
+func NewDataSet() DataSet {
+	return DataSet{
+		make(map[string]int),
+		make([]*DataNode, 0),
+	}
+}
+
+func (ds *DataSet) Get(f string) (*DataNode, bool) {
+	if idx, ok := ds.dataMap[f]; ok {
+		return ds.data[idx], true
+	} else {
+		return nil, false
+	}
+}
+
+func (ds *DataSet) Set(f string, v *DataNode) (err error) {
+	err = nil
+	if idx, ok := ds.dataMap[f]; ok {
+		ds.data[idx] = v
+	} else {
+		ds.data = append(ds.data, v)
+		ds.dataMap[f] = len(ds.data) - 1
+	}
+	return
+}
+
+func (ds *DataSet) UnmarshalJSON(b []byte) error  {
+	if err := DGraphJsonMarshaller.Unmarshal(b, ds.data); err != nil {
+		return err
+	}
+	for i, d := range ds.data {
+		ds.dataMap[d.field] = i
+	}
+	return nil
+}
+
+func (ds *DataSet) MarshalJSON() ([]byte, error)  {
+	return DGraphJsonMarshaller.Marshal(ds.data)
 }
 
 type Document struct {
-	userNode
+	assetInfoNode
 }
 
 type User struct {
