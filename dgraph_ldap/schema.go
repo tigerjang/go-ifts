@@ -46,10 +46,6 @@ type nodeBase struct {
 	ModifyTime time.Time `db:"mt" client:"modify_time" schema:"dateTime @index(hour)"`
 }
 
-func (*nodeBase) GetChildren() error {
-	return nil  // TODO
-}
-
 type assetInfoNode struct {
 	nodeBase
 
@@ -77,22 +73,43 @@ type assetInfoNode struct {
 	Permissions int64 `db:"pm" schema:"int"`
 }
 
+type DataTypeType uint
 
+const (
+	DataTypeJson DataTypeType = iota
+	DataTypeText
+	DataTypeHTML
+)
+
+var DateTypeNameMap = map[DataTypeType]string {
+	DataTypeJson: "json",
+	DataTypeText: "text",
+	DataTypeHTML: "html",
+}
 
 type DataNode struct {
-	field string
+	Field string `db:"d|f"`
+	Data interface{} `db:"-" client:"data"`
+	RawData string `db:"rd" client:"-" schema:"string"`  // TODO: string?
+	Type DataTypeType `db:"dt" client:"-" schema:"int"`
+	Language string // FIXME 应该在这一层， 还是Data那一层?
+	Version uint
+}
+
+func (dn *DataNode) UnmarshalFromDB(valueData *DecodeValueData) error {
+	valueData.DecodeDefault()
+	api := valueData.GetAPI()
+	if dn.Type == DataTypeJson {
+		dn.Data = api.Get([]byte(dn.RawData))
+	} else {
+		dn.Data = &dn.RawData
+	}
+	return nil
 }
 
 type DataSet struct{
 	dataMap map[string]int
 	data []*DataNode
-}
-
-func NewDataSet() DataSet {
-	return DataSet{
-		make(map[string]int),
-		make([]*DataNode, 0),
-	}
 }
 
 func (ds *DataSet) Get(f string) (*DataNode, bool) {
@@ -114,22 +131,20 @@ func (ds *DataSet) Set(f string, v *DataNode) (err error) {
 	return
 }
 
-func (ds *DataSet) UnmarshalJSON(b []byte) error  {
-	if err := DGraphJsonMarshaller.Unmarshal(b, ds.data); err != nil {
-		return err
-	}
+func (ds *DataSet) UnmarshalFromDB(valueData *DecodeValueData) error {
+	iter := valueData.GetIterator()
+	//ds.data = make([]*DataNode, 0)
+	iter.ReadVal(&ds.data)
+	ds.dataMap = make(map[string]int)
 	for i, d := range ds.data {
-		ds.dataMap[d.field] = i
+		ds.dataMap[d.Field] = i
 	}
 	return nil
 }
 
-func (ds *DataSet) MarshalJSON() ([]byte, error)  {
-	return DGraphJsonMarshaller.Marshal(ds.data)
-}
-
 type Document struct {
 	assetInfoNode
+	Data *DataSet `db:"d" client:"data" schema:"uid"`
 }
 
 type User struct {
@@ -141,7 +156,7 @@ func UnmarshalNode(b []byte) (node Node, err error) {
 		nodeType := NodeType(nt.ToUint())
 		switch nodeType {
 		case TypeDocument:
-			node = new(Document)
+			node = &Document{}
 			err = DGraphJsonMarshaller.Unmarshal(b, node)
 		default:
 			node = nil
@@ -159,23 +174,5 @@ func MarshalNode(n Node) (b []byte, err error) {
 	return
 }
 
-var DGraphJsonMarshaller = jsoniter.Config{
-	//IndentionStep:                 4,
-	//MarshalFloatWith6Digits:       false,
-	EscapeHTML:                    false,
-	SortMapKeys:                   false,
-	//UseNumber:                     true,
-	//DisallowUnknownFields:         true,
-	TagKey:                        "db",
-	//OnlyTaggedField:               true,
-	//ValidateJsonRawMessage:        true,
-	//ObjectFieldMustBeSimpleString: true,
-}.Froze()
-
-var ClientJsonMarshaller = jsoniter.Config{
-	EscapeHTML:                    false,
-	SortMapKeys:                   false,
-	TagKey:                        "client",
-}.Froze()
 
 
